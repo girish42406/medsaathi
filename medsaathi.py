@@ -16,16 +16,159 @@ MODELS = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.8-flash"]
 client = genai.Client(http_options=types.HttpOptions(timeout=30000))
 LAST_ERR = {"msg": ""}
 
+LANGS = {"हिंदी": "hi", "English": "en", "मराठी": "mr"}
+
+# ---------- UI text ----------
+TT = {
+    "hi": {
+        "profile": "आपकी प्रोफ़ाइल (वैकल्पिक)",
+        "profile_note": "ये कहीं सेव नहीं होती, सिर्फ़ इसी सेशन में इस्तेमाल होती है।",
+        "age": "उम्र",
+        "age_adult": "वयस्क",
+        "age_child": "बच्चा (12 से कम)",
+        "age_elderly": "बुज़ुर्ग (65+)",
+        "cond": "कोई बीमारी?",
+        "allergy": "एलर्जी (कॉमा से अलग करें, जैसे aspirin)",
+        "caption": "दवा की फोटो डालें, हम बताएंगे ये क्या है और क्या सावधानी रखनी है।",
+        "upload": "दवा की फोटो डालें",
+        "reading": "पढ़ रहा हूँ...",
+        "kaam": "काम",
+        "salt": "मूल तत्व",
+        "exp_ok": "✅ एक्सपायरी: {e}. अभी ठीक है।",
+        "exp_soon": "⚠️ एक्सपायरी: {e}. जल्दी खत्म होगी ({d} दिन बाकी)।",
+        "exp_bad": "❌ एक्सपायरी: {e}. ये दवा एक्सपायर हो चुकी है, न खाएं।",
+        "exp_unclear": "एक्सपायरी साफ़ नहीं दिखी, स्ट्रिप पर खुद देख लें।",
+        "warn_head": "कौन न ले / आपके लिए सावधानी",
+        "together_head": "साथ लेने की सावधानी",
+        "allergy_msg": "❌ आपने {a} से एलर्जी बताई है। ये दवा उसी तत्व की है, न लें, डॉक्टर से पूछें।",
+        "no_label": "FDA लेबल डेटा नहीं मिला। फार्मासिस्ट से ज़रूर पूछें।",
+        "src": "FDA लेबल का मूल टेक्स्ट (सोर्स)",
+        "general": "सामान्य चेतावनी",
+        "summary_fail": "सारांश नहीं बन पाया, नीचे मूल टेक्स्ट देखें।",
+        "no_direct": "FDA लेबल में इनका सीधा इंटरैक्शन नहीं मिला। ये गारंटी नहीं है, फार्मासिस्ट से ज़रूर पूछें।",
+        "inter_fail": "इंटरैक्शन मिला है, फार्मासिस्ट से पूछें।",
+        "disclaimer": "⚠️ ये सिर्फ़ जानकारी के लिए है, डॉक्टर/फार्मासिस्ट की सलाह का विकल्प नहीं। डोज़ और दवा का फ़ैसला हमेशा डॉक्टर से करवाएं।",
+        "photo_fail": "ये फोटो पढ़ नहीं पाया, दोबारा कोशिश करें।",
+    },
+    "en": {
+        "profile": "Your profile (optional)",
+        "profile_note": "This is not saved anywhere, only used in this session.",
+        "age": "Age",
+        "age_adult": "Adult",
+        "age_child": "Child (under 12)",
+        "age_elderly": "Elderly (65+)",
+        "cond": "Any health condition?",
+        "allergy": "Allergy (comma separated, e.g. aspirin)",
+        "caption": "Upload a photo of your medicine and we'll explain what it is and what to watch out for.",
+        "upload": "Upload medicine photo(s)",
+        "reading": "Reading...",
+        "kaam": "Used for",
+        "salt": "Active ingredient",
+        "exp_ok": "✅ Expiry: {e}. Still fine.",
+        "exp_soon": "⚠️ Expiry: {e}. Expires soon ({d} days left).",
+        "exp_bad": "❌ Expiry: {e}. This medicine has expired, do not take it.",
+        "exp_unclear": "Expiry not clearly visible, please check the strip yourself.",
+        "warn_head": "Who should not take it / precautions for you",
+        "together_head": "Precautions when taken together",
+        "allergy_msg": "❌ You said you are allergic to {a}. This medicine contains it, do not take it, ask a doctor.",
+        "no_label": "No FDA label data found. Please ask a pharmacist.",
+        "src": "Original FDA label text (source)",
+        "general": "General warnings",
+        "summary_fail": "Could not make a summary, see the original text below.",
+        "no_direct": "No direct interaction found in the FDA labels. This is not a guarantee, please ask a pharmacist.",
+        "inter_fail": "An interaction was found, please ask a pharmacist.",
+        "disclaimer": "⚠️ For information only, not a substitute for a doctor/pharmacist. Always get dose and medicine decisions from a doctor.",
+        "photo_fail": "Could not read this photo, please try again.",
+    },
+    "mr": {
+        "profile": "तुमची प्रोफाइल (ऐच्छिक)",
+        "profile_note": "ही कुठेही साठवली जात नाही, फक्त या सत्रात वापरली जाते.",
+        "age": "वय",
+        "age_adult": "प्रौढ",
+        "age_child": "लहान मूल (१२ पेक्षा कमी)",
+        "age_elderly": "ज्येष्ठ (६५+)",
+        "cond": "काही आजार?",
+        "allergy": "अ‍ॅलर्जी (स्वल्पविरामाने वेगळी करा, उदा. aspirin)",
+        "caption": "औषधाचा फोटो टाका, हे काय आहे आणि काय काळजी घ्यावी ते आम्ही सांगू.",
+        "upload": "औषधाचे फोटो टाका",
+        "reading": "वाचत आहे...",
+        "kaam": "उपयोग",
+        "salt": "मूळ घटक",
+        "exp_ok": "✅ मुदत: {e}. अजून ठीक आहे.",
+        "exp_soon": "⚠️ मुदत: {e}. लवकरच संपेल ({d} दिवस बाकी).",
+        "exp_bad": "❌ मुदत: {e}. हे औषध एक्स्पायर झाले आहे, घेऊ नका.",
+        "exp_unclear": "मुदत नीट दिसली नाही, स्ट्रिपवर स्वतः पाहा.",
+        "warn_head": "कोणी घेऊ नये / तुमच्यासाठी काळजी",
+        "together_head": "एकत्र घेताना काळजी",
+        "allergy_msg": "❌ तुम्ही {a} ची अ‍ॅलर्जी सांगितली आहे. हे औषध त्याच घटकाचे आहे, घेऊ नका, डॉक्टरांना विचारा.",
+        "no_label": "FDA लेबल डेटा मिळाला नाही. फार्मासिस्टला नक्की विचारा.",
+        "src": "FDA लेबलचा मूळ मजकूर (स्रोत)",
+        "general": "सर्वसाधारण इशारे",
+        "summary_fail": "सारांश तयार झाला नाही, खाली मूळ मजकूर पाहा.",
+        "no_direct": "FDA लेबलमध्ये यांचा थेट परस्परसंवाद आढळला नाही. याची हमी नाही, फार्मासिस्टला नक्की विचारा.",
+        "inter_fail": "परस्परसंवाद आढळला आहे, फार्मासिस्टला विचारा.",
+        "disclaimer": "⚠️ ही फक्त माहिती आहे, डॉक्टर/फार्मासिस्टच्या सल्ल्याला पर्याय नाही. डोस आणि औषधाचा निर्णय नेहमी डॉक्टरांकडून घ्या.",
+        "photo_fail": "हा फोटो वाचता आला नाही, पुन्हा प्रयत्न करा.",
+    },
+}
+
+# sidebar ke condition labels
+CLT = {
+    "hi": {
+        "pregnancy": "गर्भावस्था / दूध पिलाना",
+        "kidney": "किडनी की समस्या",
+        "liver": "लिवर की समस्या",
+        "asthma": "अस्थमा",
+        "heart_bp": "BP / दिल की बीमारी",
+        "stomach": "पेट का अल्सर / एसिडिटी",
+    },
+    "en": {
+        "pregnancy": "Pregnancy / breastfeeding",
+        "kidney": "Kidney problem",
+        "liver": "Liver problem",
+        "asthma": "Asthma",
+        "heart_bp": "BP / heart disease",
+        "stomach": "Stomach ulcer / acidity",
+    },
+    "mr": {
+        "pregnancy": "गर्भावस्था / स्तनपान",
+        "kidney": "किडनीचा त्रास",
+        "liver": "यकृताचा (लिव्हर) त्रास",
+        "asthma": "दमा",
+        "heart_bp": "बीपी / हृदयरोग",
+        "stomach": "पोटातील अल्सर / अ‍ॅसिडिटी",
+    },
+}
+
+# AI ke liye language instructions
+L_INSTR = {
+    "hi": "Write ONLY in Hindi, Devanagari (हिंदी) script. No Roman letters, no English sentences (drug names may stay in English).",
+    "en": "Write ONLY in simple, clear English.",
+    "mr": "Write ONLY in Marathi, Devanagari (मराठी) script. No Roman letters, no Hindi (drug names may stay in English).",
+}
+NOWARN = {
+    "hi": "लेबल में अलग से चेतावनी नहीं मिली (इसका मतलब ये नहीं कि ये सुरक्षित है, डॉक्टर से पूछें)",
+    "en": "No separate warning found in the label (this does not mean it is safe, ask a doctor)",
+    "mr": "लेबलमध्ये वेगळा इशारा आढळला नाही (याचा अर्थ हे सुरक्षित आहे असे नाही, डॉक्टरांना विचारा)",
+}
+NOTTOGETHER = {
+    "hi": "ये दोनों एक साथ लेने की बात नहीं है।",
+    "en": "This is not about taking the two together.",
+    "mr": "ही दोन्ही औषधे एकत्र घेण्याबद्दल नाही.",
+}
+
 PROMPT = (
-    "Is dawai ke label se ye nikaalo. Sirf JSON do, aur kuch nahi: "
-    '{"brand": "", "generic": "", "names": [], "use_hindi": "", "expiry": ""}. '
-    "generic = English me asli salt ka sabse common naam. "
-    "names = us salt ke saare common English naam/synonyms ki list, US wale naam "
-    'ke saath (jaise ["acetaminophen", "paracetamol"] ya '
+    "Extract the following from this medicine label. Reply with JSON only: "
+    '{"brand": "", "generic": "", "names": [], '
+    '"use": {"hi": "", "en": "", "mr": ""}, "expiry": ""}. '
+    "generic = the most common English name of the active salt. "
+    "names = list of all common English names/synonyms of the salt, including the "
+    'US name (e.g. ["acetaminophen", "paracetamol"] or '
     '["aspirin", "acetylsalicylic acid"]). '
-    "use_hindi = kis kaam aati hai, Devanagari (हिंदी) script me, simple bhasha me. "
-    "expiry = MM/YYYY format me. "
-    "Jo saaf na dikhe usse null rakho, andaza mat lagao."
+    "use = what the medicine is used for, in simple words: hi in Devanagari Hindi, "
+    "en in English, mr in Devanagari Marathi. "
+    "expiry = in MM/YYYY format. "
+    "Use null for anything not clearly visible, do not guess."
 )
 
 KEYWORDS = (
@@ -39,7 +182,6 @@ KEYWORDS = (
     "used with",
 )
 
-# FDA label ke wo hisse jahan warnings hoti hain
 FIELDS = [
     "boxed_warning",
     "contraindications",
@@ -57,25 +199,18 @@ FIELDS = [
 ]
 GENERAL_FIELDS = ["boxed_warning", "contraindications", "do_not_use"]
 
-# condition -> (Hindi naam, label me dhundhne ke shabd)
+# condition -> (English naam, label me dhundhne ke shabd)
 COND = {
-    "pregnancy": ("Pregnancy / doodh pilana", ["pregnan", "breast", "nursing", "lactat", "fetal", "fetus"]),
-    "kidney": ("Kidney ki problem", ["renal", "kidney"]),
-    "liver": ("Liver ki problem", ["hepatic", "liver"]),
+    "pregnancy": ("Pregnancy / breastfeeding", ["pregnan", "breast", "nursing", "lactat", "fetal", "fetus"]),
+    "kidney": ("Kidney problem", ["renal", "kidney"]),
+    "liver": ("Liver problem", ["hepatic", "liver"]),
     "asthma": ("Asthma", ["asthma", "bronchospasm"]),
-    "heart_bp": ("BP / dil ki bimari", ["hypertension", "blood pressure", "cardiovascular", "heart failure", "myocardial"]),
-    "stomach": ("Pet ka ulcer / acidity", ["ulcer", "gastrointestinal", "stomach", "bleeding"]),
-    "child": ("Bachche (12 se kam)", ["pediatric", "children", "child", "reye"]),
-    "elderly": ("Buzurg (65+)", ["geriatric", "elderly", "older patients", "older adults"]),
+    "heart_bp": ("BP / heart disease", ["hypertension", "blood pressure", "cardiovascular", "heart failure", "myocardial"]),
+    "stomach": ("Stomach ulcer / acidity", ["ulcer", "gastrointestinal", "stomach", "bleeding"]),
+    "child": ("Children (under 12)", ["pediatric", "children", "child", "reye"]),
+    "elderly": ("Elderly (65+)", ["geriatric", "elderly", "older patients", "older adults"]),
 }
-COND_CHOICES = {
-    "Pregnancy / doodh pilana": "pregnancy",
-    "Kidney ki problem": "kidney",
-    "Liver ki problem": "liver",
-    "Asthma": "asthma",
-    "BP / dil ki bimari": "heart_bp",
-    "Pet ka ulcer / acidity": "stomach",
-}
+SIDEBAR_CONDS = ["pregnancy", "kidney", "liver", "asthma", "heart_bp", "stomach"]
 
 
 def ask(contents, as_json=True):
@@ -98,8 +233,8 @@ def ask(contents, as_json=True):
 @st.cache_data(show_spinner=False)
 def read_photo(data, mime):
     info = ask([types.Part.from_bytes(data=data, mime_type=mime), PROMPT])
-    if info is None:
-        raise RuntimeError("photo read failed")  # fail hua result cache nahi hota
+    if not isinstance(info, dict):
+        raise RuntimeError("photo read failed")
     return info
 
 
@@ -168,16 +303,15 @@ def general_sents(label, n=3):
 
 
 @st.cache_data(show_spinner=False)
-def summarize(generic, payload_json):
+def summarize(generic, payload_json, code, general_head):
     text = ask(
-        f"Neeche {generic} ke FDA label ke hisse hain (JSON). Sirf isi text ke "
-        "basis par sirf Devanagari (हिंदी) script me, Roman ya English me nahi, "
-        "chhote bullets banao (headings bhi Devanagari me): pehle "
-        "'कौन न ले / सावधानी' (general), phir har condition ke liye alag bullet. "
-        "Jis condition ka text khali ho uske liye likho 'label me alag se warning "
-        "nahi mili (iska matlab ye nahi ki ye surakshit hai, doctor se poochho)'. "
-        "Shuru me 'diye gaye text ke aadhar par' jaisi bhoomika mat likho. "
-        "Apni taraf se kuch mat jodo aur dose kabhi mat batao.\n\n" + payload_json,
+        f"Below are parts of the FDA label for {generic} (JSON). Based ONLY on this "
+        "text, make short bullet points. Start with a heading "
+        f"'{general_head}' for the general warnings, then one separate heading + "
+        "bullets for each condition in 'profile'. "
+        f"If a condition has no text, write: '{NOWARN[code]}'. "
+        "Do not add an introduction, do not add anything of your own, and never "
+        f"mention dose. {L_INSTR[code]}\n\n" + payload_json,
         as_json=False,
     )
     if not text:
@@ -185,20 +319,67 @@ def summarize(generic, payload_json):
     return text
 
 
+@st.cache_data(show_spinner=False)
+def explain_pair(ga, gb, snippet, code):
+    return ask(
+        "Below is text from an FDA label. Based ONLY on this text, explain in 2-3 "
+        f"short lines what precaution applies when taking {ga} and {gb} together. "
+        "If the text mentions taking both together (concomitant / co-administration), "
+        "write that first. If the text is not about taking them together (e.g. only "
+        f"about allergy or a disease), start with: '{NOTTOGETHER[code]}'. "
+        f"Do not add anything of your own. {L_INSTR[code]}\n\n" + snippet,
+        as_json=False,
+    )
+
+
+# ---------- Sidebar ----------
+lang_label = st.sidebar.selectbox("भाषा / Language", list(LANGS))
+code = LANGS[lang_label]
+T = TT[code]
+CL = CLT[code]
+
+st.sidebar.header(T["profile"])
+st.sidebar.caption(T["profile_note"])
+age = st.sidebar.radio(
+    T["age"],
+    ["adult", "child", "elderly"],
+    format_func=lambda k: T["age_" + k],
+)
+selected = st.sidebar.multiselect(
+    T["cond"], SIDEBAR_CONDS, format_func=lambda k: CL[k]
+)
+allergy_txt = st.sidebar.text_input(T["allergy"])
+
+selected = list(selected)
+if age == "child":
+    selected.append("child")
+if age == "elderly":
+    selected.append("elderly")
+allergies = [a.strip().lower() for a in allergy_txt.split(",") if a.strip()]
+
+
+def cond_label(k):
+    if k == "child":
+        return T["age_child"]
+    if k == "elderly":
+        return T["age_elderly"]
+    return CL[k]
+
+
 def show_expiry(exp):
     m = re.search(r"(\d{1,2})\s*/\s*(\d{4})", exp or "")
     if not m or not 1 <= int(m.group(1)) <= 12:
-        st.info("Expiry saaf nahi dikhi, strip pe khud dekh lo.")
+        st.info(T["exp_unclear"])
         return
     month, year = int(m.group(1)), int(m.group(2))
     last_day = date(year, month, calendar.monthrange(year, month)[1])
     days = (last_day - date.today()).days
     if days < 0:
-        st.error(f"❌ Expiry: {exp}. Ye dawai expire ho chuki hai, mat khao.")
+        st.error(T["exp_bad"].format(e=exp))
     elif days <= 90:
-        st.warning(f"⚠️ Expiry: {exp}. Jaldi expire hogi ({days} din baaki).")
+        st.warning(T["exp_soon"].format(e=exp, d=days))
     else:
-        st.success(f"✅ Expiry: {exp}. Abhi theek hai.")
+        st.success(T["exp_ok"].format(e=exp))
 
 
 def med_card(photo, info):
@@ -207,34 +388,22 @@ def med_card(photo, info):
         with c1:
             st.image(photo)
         with c2:
-            st.subheader(info.get("brand") or info.get("generic") or "Dawai")
+            st.subheader(info.get("brand") or info.get("generic") or "?")
             if info.get("generic"):
-                st.caption(f"Salt: {info['generic']}")
-            if info.get("use_hindi"):
-                st.write(f"**Kaam:** {info['use_hindi']}")
+                st.caption(f"{T['salt']}: {info['generic']}")
+            use = info.get("use")
+            use = use.get(code) if isinstance(use, dict) else None
+            if use:
+                st.write(f"**{T['kaam']}:** {use}")
             show_expiry(info.get("expiry"))
 
 
-# ---------- Sidebar: profile ----------
-st.sidebar.header("Aapki profile (optional)")
-st.sidebar.caption("Ye kahin save nahi hoti, sirf isi session me use hoti hai.")
-age = st.sidebar.radio("Umar", ["Adult", "Bachcha (12 se kam)", "Buzurg (65+)"])
-chosen = st.sidebar.multiselect("Koi condition?", list(COND_CHOICES))
-allergy_txt = st.sidebar.text_input("Allergy (comma se alag karo, jaise aspirin)")
-
-selected = [COND_CHOICES[c] for c in chosen]
-if age.startswith("Bachcha"):
-    selected.append("child")
-if age.startswith("Buzurg"):
-    selected.append("elderly")
-allergies = [a.strip().lower() for a in allergy_txt.split(",") if a.strip()]
-
 # ---------- Main ----------
 st.title("MedSaathi 💊")
-st.caption("Dawai ki photo daalo, hum bataenge ye kya hai aur kya savdhani rakhni hai.")
+st.caption(T["caption"])
 
 photos = st.file_uploader(
-    "Dawai ki photo(s) daalo",
+    T["upload"],
     type=["jpg", "jpeg", "png"],
     accept_multiple_files=True,
 )
@@ -243,10 +412,10 @@ if photos:
     meds = []
     for p in photos:
         try:
-            with st.spinner("Padh raha hoon..."):
+            with st.spinner(T["reading"]):
                 info = read_photo(p.getvalue(), p.type)
         except RuntimeError:
-            st.error("Ye photo padh nahi paya, dobara try karo.")
+            st.error(T["photo_fail"])
             st.caption(LAST_ERR["msg"])
             continue
         info = {k: (None if v in ("null", "", "None") else v) for k, v in info.items()}
@@ -255,7 +424,7 @@ if photos:
 
     # ----- Kaun na le / profile ke hisaab se savdhani -----
     if meds:
-        st.header("Kaun na le / aapke liye savdhani")
+        st.header(T["warn_head"])
         for med in meds:
             names = names_of(med)
             if not names:
@@ -265,45 +434,42 @@ if photos:
                 st.subheader(g)
                 bad = [a for a in allergies if any(a in n or n in a for n in names)]
                 if bad:
-                    st.error(
-                        f"❌ Aapne {', '.join(bad)} se allergy bataayi hai. "
-                        "Ye dawai usi salt ki hai, mat lo, doctor se poochho."
-                    )
+                    st.error(T["allergy_msg"].format(a=", ".join(bad)))
                 label = label_for(names)
                 if not label:
-                    st.info("FDA label data nahi mila. Pharmacist se zaroor poochho.")
+                    st.info(T["no_label"])
                     continue
                 gen = general_sents(label)
                 hits = {k: find_sents(label, COND[k][1]) for k in selected}
                 payload = {
                     "general": gen,
-                    "profile": {COND[k][0]: v for k, v in hits.items()},
+                    "profile": {cond_label(k): v for k, v in hits.items()},
                 }
                 payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True)
                 try:
-                    with st.spinner("Label padh raha hoon..."):
-                        text = summarize(g, payload_json)
+                    with st.spinner(T["reading"]):
+                        text = summarize(g, payload_json, code, T["warn_head"])
                 except RuntimeError:
                     text = None
                 has_profile_hit = any(hits.values())
                 if text:
                     (st.warning if has_profile_hit else st.info)(text)
                 else:
-                    st.info("Summary nahi ban payi, neeche original text dekho.")
-                with st.expander("FDA label ka original text (source)"):
+                    st.info(T["summary_fail"])
+                with st.expander(T["src"]):
                     if gen:
-                        st.markdown("**General warnings:**")
+                        st.markdown(f"**{T['general']}:**")
                         for s in gen:
                             st.write("- " + s)
                     for k, v in hits.items():
                         if v:
-                            st.markdown(f"**{COND[k][0]}:**")
+                            st.markdown(f"**{cond_label(k)}:**")
                             for s in v:
                                 st.write("- " + s)
 
     # ----- Saath lene ki savdhani -----
     if len(meds) >= 2:
-        st.header("Saath lene ki savdhani")
+        st.header(T["together_head"])
         for a, b in combinations(meds, 2):
             na, nb = names_of(a), names_of(b)
             if not na or not nb:
@@ -314,35 +480,17 @@ if photos:
                 ta = label_for(na).get("drug_interactions")
                 tb = label_for(nb).get("drug_interactions")
                 if not ta and not tb:
-                    st.info("FDA label data nahi mila. Pharmacist se zaroor poochho.")
+                    st.info(T["no_label"])
                     continue
                 hits = mentions(ta, nb) + mentions(tb, na)
                 if hits:
                     snippet = " ".join(hits)
-                    hindi = ask(
-                        "Neeche FDA label ka text hai. Sirf isi text ke basis par, "
-                        "2-3 line me batao ki "
-                        f"{ga} aur {gb} saath lene me kya savdhani hai. "
-                        "Agar ye text dono dawai ek saath lene ke baare me nahi hai "
-                        "(jaise sirf allergy ya kisi bimari ke baare me), toh pehli "
-                        "line me saaf likho: 'Ye dono ek saath lene ki baat nahi hai.' "
-                        "Agar text me dono dawai ek saath lene (concomitant / "
-                        "co-administration) ki baat ho, toh wahi sabse pehle likho. "
-                        "Sirf Devanagari (हिंदी) script me likho. "
-                        "Apni taraf se kuch mat jodo.\n\n" + snippet,
-                        as_json=False,
-                    )
-                    st.warning(hindi or "Interaction mila hai, pharmacist se poochho.")
-                    with st.expander("FDA label ka original text (source)"):
+                    text = explain_pair(ga, gb, snippet, code)
+                    st.warning(text or T["inter_fail"])
+                    with st.expander(T["src"]):
                         st.write(snippet)
                 else:
-                    st.success(
-                        "FDA label me inka seedha interaction mention nahi mila. "
-                        "Ye guarantee nahi hai, pharmacist se zaroor poochho."
-                    )
+                    st.success(T["no_direct"])
 
     st.divider()
-    st.caption(
-        "⚠️ Ye sirf jaankari ke liye hai, doctor/pharmacist ki salah ka "
-        "vikalp nahi. Dose aur dawai ka faisla hamesha doctor se karwao."
-    )
+    st.caption(T["disclaimer"])
