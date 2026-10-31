@@ -16,7 +16,32 @@ MODELS = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.8-flash"]
 client = genai.Client(http_options=types.HttpOptions(timeout=30000))
 LAST_ERR = {"msg": ""}
 
-LANGS = {"हिंदी": "hi", "English": "en", "मराठी": "mr"}
+# display naam -> (code, English naam, script)
+LANGS = {
+    "हिंदी": ("hi", "Hindi", "Devanagari"),
+    "English": ("en", "English", "Latin"),
+    "मराठी": ("mr", "Marathi", "Devanagari"),
+    "অসমীয়া (Assamese)": ("as", "Assamese", "Assamese/Bengali"),
+    "বাংলা (Bengali)": ("bn", "Bengali", "Bengali"),
+    "बर' (Bodo)": ("brx", "Bodo", "Devanagari"),
+    "डोगरी (Dogri)": ("doi", "Dogri", "Devanagari"),
+    "ગુજરાતી (Gujarati)": ("gu", "Gujarati", "Gujarati"),
+    "ಕನ್ನಡ (Kannada)": ("kn", "Kannada", "Kannada"),
+    "کٲشُر (Kashmiri)": ("ks", "Kashmiri", "Perso-Arabic"),
+    "कोंकणी (Konkani)": ("kok", "Konkani", "Devanagari"),
+    "मैथिली (Maithili)": ("mai", "Maithili", "Devanagari"),
+    "മലയാളം (Malayalam)": ("ml", "Malayalam", "Malayalam"),
+    "ꯃꯤꯇꯩꯂꯣꯟ (Manipuri)": ("mni", "Manipuri (Meitei)", "Meitei Mayek"),
+    "नेपाली (Nepali)": ("ne", "Nepali", "Devanagari"),
+    "ଓଡ଼ିଆ (Odia)": ("or", "Odia", "Odia"),
+    "ਪੰਜਾਬੀ (Punjabi)": ("pa", "Punjabi", "Gurmukhi"),
+    "संस्कृतम् (Sanskrit)": ("sa", "Sanskrit", "Devanagari"),
+    "ᱥᱟᱱᱛᱟᱲᱤ (Santali)": ("sat", "Santali", "Ol Chiki"),
+    "سنڌي (Sindhi)": ("sd", "Sindhi", "Perso-Arabic"),
+    "தமிழ் (Tamil)": ("ta", "Tamil", "Tamil"),
+    "తెలుగు (Telugu)": ("te", "Telugu", "Telugu"),
+    "اردو (Urdu)": ("ur", "Urdu", "Perso-Arabic"),
+}
 
 # ---------- UI text ----------
 TT = {
@@ -140,12 +165,6 @@ CLT = {
     },
 }
 
-# AI ke liye language instructions
-L_INSTR = {
-    "hi": "Write ONLY in Hindi, Devanagari (हिंदी) script. No Roman letters, no English sentences (drug names may stay in English).",
-    "en": "Write ONLY in simple, clear English.",
-    "mr": "Write ONLY in Marathi, Devanagari (मराठी) script. No Roman letters, no Hindi (drug names may stay in English).",
-}
 NOWARN = {
     "hi": "लेबल में अलग से चेतावनी नहीं मिली (इसका मतलब ये नहीं कि ये सुरक्षित है, डॉक्टर से पूछें)",
     "en": "No separate warning found in the label (this does not mean it is safe, ask a doctor)",
@@ -303,15 +322,16 @@ def general_sents(label, n=3):
 
 
 @st.cache_data(show_spinner=False)
-def summarize(generic, payload_json, code, general_head):
+def summarize(generic, payload_json, lang_name, script, nowarn, general_head):
     text = ask(
         f"Below are parts of the FDA label for {generic} (JSON). Based ONLY on this "
         "text, make short bullet points. Start with a heading "
         f"'{general_head}' for the general warnings, then one separate heading + "
         "bullets for each condition in 'profile'. "
-        f"If a condition has no text, write: '{NOWARN[code]}'. "
+        f"If a condition has no text, write: '{nowarn}'. "
         "Do not add an introduction, do not add anything of your own, and never "
-        f"mention dose. {L_INSTR[code]}\n\n" + payload_json,
+        f"mention dose. Write ONLY in {lang_name} ({script} script); "
+        "drug names may stay in English.\n\n" + payload_json,
         as_json=False,
     )
     if not text:
@@ -320,23 +340,85 @@ def summarize(generic, payload_json, code, general_head):
 
 
 @st.cache_data(show_spinner=False)
-def explain_pair(ga, gb, snippet, code):
+def explain_pair(ga, gb, snippet, lang_name, script, nottogether):
     return ask(
         "Below is text from an FDA label. Based ONLY on this text, explain in 2-3 "
         f"short lines what precaution applies when taking {ga} and {gb} together. "
         "If the text mentions taking both together (concomitant / co-administration), "
         "write that first. If the text is not about taking them together (e.g. only "
-        f"about allergy or a disease), start with: '{NOTTOGETHER[code]}'. "
-        f"Do not add anything of your own. {L_INSTR[code]}\n\n" + snippet,
+        f"about allergy or a disease), start with: '{nottogether}'. "
+        f"Do not add anything of your own. Write ONLY in {lang_name} "
+        f"({script} script); drug names may stay in English.\n\n" + snippet,
         as_json=False,
     )
 
 
+@st.cache_data(show_spinner=False)
+def translate_ui(lang_name, script):
+    """English UI text ko kisi bhi bhasha me translate karta hai (ek baar, phir cache)."""
+    base = json.dumps(
+        {
+            "T": TT["en"],
+            "CL": CLT["en"],
+            "NOWARN": NOWARN["en"],
+            "NOTTOGETHER": NOTTOGETHER["en"],
+        },
+        ensure_ascii=False,
+    )
+    out = ask(
+        f"Translate the VALUES of this JSON into {lang_name} ({script} script). "
+        "Keep all keys unchanged. Keep placeholders like {e}, {d}, {a} and emoji "
+        "exactly as they are. Keep drug names and abbreviations like FDA and BP as "
+        "they are. Use simple everyday words that a common person understands. "
+        "Reply with JSON only.\n\n" + base
+    )
+    if not isinstance(out, dict) or not all(
+        k in out for k in ("T", "CL", "NOWARN", "NOTTOGETHER")
+    ):
+        raise RuntimeError("ui translation failed")
+    return out
+
+
+@st.cache_data(show_spinner=False)
+def tr_text(text, lang_name, script):
+    out = ask(
+        f"Translate this into {lang_name} ({script} script), simple words, "
+        "keep drug names as they are. Reply with only the translation:\n" + text,
+        as_json=False,
+    )
+    if not out:
+        raise RuntimeError("translation failed")
+    return out.strip()
+
+
 # ---------- Sidebar ----------
 lang_label = st.sidebar.selectbox("भाषा / Language", list(LANGS))
-code = LANGS[lang_label]
-T = TT[code]
-CL = CLT[code]
+code, LANG_NAME, SCRIPT = LANGS[lang_label]
+
+if code in TT:
+    T, CL, NW, NT = TT[code], CLT[code], NOWARN[code], NOTTOGETHER[code]
+else:
+    try:
+        with st.sidebar:
+            with st.spinner("..."):
+                pack = translate_ui(LANG_NAME, SCRIPT)
+        T = {**TT["en"], **pack["T"]}
+        CL = {**CLT["en"], **pack["CL"]}
+        NW, NT = pack["NOWARN"], pack["NOTTOGETHER"]
+        st.sidebar.caption(
+            "⚠️ Machine-translated. Please verify with a doctor/pharmacist. "
+            "FDA source text stays in English."
+        )
+    except RuntimeError:
+        st.sidebar.warning("Translation failed, showing English. Try again.")
+        T, CL, NW, NT = TT["en"], CLT["en"], NOWARN["en"], NOTTOGETHER["en"]
+        code, LANG_NAME, SCRIPT = "en", "English", "Latin"
+
+if code in ("ur", "ks", "sd"):
+    st.markdown(
+        "<style>div[data-testid='stMarkdownContainer']{direction:rtl;text-align:right;}</style>",
+        unsafe_allow_html=True,
+    )
 
 st.sidebar.header(T["profile"])
 st.sidebar.caption(T["profile_note"])
@@ -366,6 +448,13 @@ def cond_label(k):
     return CL[k]
 
 
+def safe_fmt(key, **kw):
+    try:
+        return T[key].format(**kw)
+    except (KeyError, IndexError, ValueError):
+        return TT["en"][key].format(**kw)
+
+
 def show_expiry(exp):
     m = re.search(r"(\d{1,2})\s*/\s*(\d{4})", exp or "")
     if not m or not 1 <= int(m.group(1)) <= 12:
@@ -375,11 +464,11 @@ def show_expiry(exp):
     last_day = date(year, month, calendar.monthrange(year, month)[1])
     days = (last_day - date.today()).days
     if days < 0:
-        st.error(T["exp_bad"].format(e=exp))
+        st.error(safe_fmt("exp_bad", e=exp))
     elif days <= 90:
-        st.warning(T["exp_soon"].format(e=exp, d=days))
+        st.warning(safe_fmt("exp_soon", e=exp, d=days))
     else:
-        st.success(T["exp_ok"].format(e=exp))
+        st.success(safe_fmt("exp_ok", e=exp))
 
 
 def med_card(photo, info):
@@ -392,7 +481,13 @@ def med_card(photo, info):
             if info.get("generic"):
                 st.caption(f"{T['salt']}: {info['generic']}")
             use = info.get("use")
-            use = use.get(code) if isinstance(use, dict) else None
+            if isinstance(use, dict):
+                use = use.get(code) or use.get("en")
+                if use and code not in TT:
+                    try:
+                        use = tr_text(use, LANG_NAME, SCRIPT)
+                    except RuntimeError:
+                        pass
             if use:
                 st.write(f"**{T['kaam']}:** {use}")
             show_expiry(info.get("expiry"))
@@ -434,7 +529,7 @@ if photos:
                 st.subheader(g)
                 bad = [a for a in allergies if any(a in n or n in a for n in names)]
                 if bad:
-                    st.error(T["allergy_msg"].format(a=", ".join(bad)))
+                    st.error(safe_fmt("allergy_msg", a=", ".join(bad)))
                 label = label_for(names)
                 if not label:
                     st.info(T["no_label"])
@@ -448,7 +543,7 @@ if photos:
                 payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True)
                 try:
                     with st.spinner(T["reading"]):
-                        text = summarize(g, payload_json, code, T["warn_head"])
+                        text = summarize(g, payload_json, LANG_NAME, SCRIPT, NW, T["warn_head"])
                 except RuntimeError:
                     text = None
                 has_profile_hit = any(hits.values())
@@ -485,7 +580,7 @@ if photos:
                 hits = mentions(ta, nb) + mentions(tb, na)
                 if hits:
                     snippet = " ".join(hits)
-                    text = explain_pair(ga, gb, snippet, code)
+                    text = explain_pair(ga, gb, snippet, LANG_NAME, SCRIPT, NT)
                     st.warning(text or T["inter_fail"])
                     with st.expander(T["src"]):
                         st.write(snippet)
