@@ -10,6 +10,8 @@ import streamlit as st
 from google import genai
 from google.genai import types, errors
 
+from agent import run_agent
+
 st.set_page_config(page_title="MedSaathi", page_icon="💊")
 
 MODELS = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.8-flash"]
@@ -586,6 +588,21 @@ if photos:
                         st.write(snippet)
                 else:
                     st.success(T["no_direct"])
+
+    if meds:
+        st.header("🤖 Ask MedSaathi")
+        q = st.text_input("Sawal poochho (jaise: pregnancy ke liye kya warning hai?)")
+        if q and st.button("Poochho"):
+            prof = ", ".join(cond_label(k) for k in selected)
+            with st.spinner("..."):
+                ans, steps = run_agent(client, MODELS, q, meds, LANG_NAME, prof)
+            if ans:
+                st.write(ans)
+            else:
+                st.error("Agent jawab nahi de paya, dobara try karo.")
+            with st.expander("Agent ne kya kiya"):
+                for s in steps:
+                    st.write("- " + s)
 
     st.divider()
     st.caption(T["disclaimer"])
