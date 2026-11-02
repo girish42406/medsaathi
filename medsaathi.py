@@ -508,7 +508,7 @@ photos = st.file_uploader(
 
 if photos:
     meds = []
-    for p in photos:
+    for idx, p in enumerate(photos):
         try:
             with st.spinner(T["reading"]):
                 info = read_photo(p.getvalue(), p.type)
@@ -517,6 +517,17 @@ if photos:
             st.caption(LAST_ERR["msg"])
             continue
         info = {k: (None if v in ("null", "", "None") else v) for k, v in info.items()}
+        # ----- User galat padha hua sudhaar sake -----
+        with st.expander("✏️ Galat padha? Yahan sudhaar karo (%s)" % p.name):
+            k = "%d_%s" % (idx, p.name)
+            nb = st.text_input("Brand", info.get("brand") or "", key="b_" + k)
+            ng = st.text_input("Salt / generic (English)", info.get("generic") or "", key="g_" + k)
+            ne = st.text_input("Expiry (MM/YYYY)", info.get("expiry") or "", key="e_" + k)
+        if ng.strip().lower() != (info.get("generic") or "").strip().lower():
+            info["names"] = [ng.strip()] if ng.strip() else []
+        info["brand"] = nb.strip() or None
+        info["generic"] = ng.strip() or None
+        info["expiry"] = ne.strip() or None
         meds.append(info)
         med_card(p, info)
 
