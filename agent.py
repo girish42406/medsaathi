@@ -9,6 +9,7 @@ import time
 from datetime import date
 from typing import List, Optional
 
+import httpx
 import requests
 from google.genai import errors, types
 
@@ -166,7 +167,7 @@ def run_agent(client, models, question, meds, lang_name, profile_text=""):
                 )
                 if r.text:
                     return r.text, list(log)
-            except (errors.APIError, ValueError) as e:
+            except (errors.APIError, ValueError, httpx.TimeoutException) as e:
                 log.append("model %s fail: %s" % (model, str(e)[:120]))
         time.sleep(2)
     return None, list(log)

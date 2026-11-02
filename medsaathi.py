@@ -5,6 +5,7 @@ import time
 from datetime import date
 from itertools import combinations
 
+import httpx
 import requests
 import streamlit as st
 from google import genai
@@ -15,7 +16,7 @@ from agent import run_agent
 st.set_page_config(page_title="MedSaathi", page_icon="💊")
 
 MODELS = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.8-flash"]
-client = genai.Client(http_options=types.HttpOptions(timeout=30000))
+client = genai.Client(http_options=types.HttpOptions(timeout=60000))
 LAST_ERR = {"msg": ""}
 
 # display naam -> (code, English naam, script)
@@ -245,7 +246,7 @@ def ask(contents, as_json=True):
                     model=model, contents=contents, config=cfg
                 )
                 return json.loads(r.text) if as_json else r.text
-            except (errors.APIError, ValueError) as e:
+            except (errors.APIError, ValueError, httpx.TimeoutException) as e:
                 LAST_ERR["msg"] = f"{model}: {str(e)[:200]}"
         time.sleep(2)
     return None
