@@ -13,6 +13,8 @@ import httpx
 import requests
 from google.genai import errors, types
 
+from drug_classes import class_terms
+
 FDA_URL = "https://api.fda.gov/drug/label.json"
 
 FIELDS = [
@@ -133,8 +135,10 @@ def run_agent(client, models, question, meds, lang_name, profile_text=""):
         ta, tb = la.get("drug_interactions", ""), lb.get("drug_interactions", "")
         if not ta and not tb:
             return {"label_found": False, "note": "no interaction text in FDA labels"}
-        hits = [s[:300] for s in _sents(ta) if b in s.lower()]
-        hits += [s[:300] for s in _sents(tb) if a in s.lower()]
+        tb_terms = [b] + class_terms([b])
+        ta_terms = [a] + class_terms([a])
+        hits = [s[:300] for s in _sents(ta) if any(t in s.lower() for t in tb_terms)]
+        hits += [s[:300] for s in _sents(tb) if any(t in s.lower() for t in ta_terms)]
         if not hits:
             return {
                 "label_found": True,

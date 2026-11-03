@@ -12,11 +12,12 @@ from google import genai
 from google.genai import types, errors
 
 from agent import run_agent
+from drug_classes import class_terms
 
 st.set_page_config(page_title="MedSaathi", page_icon="💊")
 
 MODELS = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.8-flash"]
-client = genai.Client(http_options=types.HttpOptions(timeout=60000))
+client = genai.Client(http_options=types.HttpOptions(timeout=30000))
 LAST_ERR = {"msg": ""}
 
 # display naam -> (code, English naam, script)
@@ -253,7 +254,24 @@ def ask(contents, as_json=True):
 
 
 @st.cache_data(show_spinner=False)
+def shrink(data):
+    """Badi photo ko chhota karo (max 1280px, JPEG) taaki jaldi padhe."""
+    try:
+        from io import BytesIO
+        from PIL import Image
+
+        img = Image.open(BytesIO(data)).convert("RGB")
+        img.thumbnail((1280, 1280))
+        buf = BytesIO()
+        img.save(buf, "JPEG", quality=85)
+        return buf.getvalue(), "image/jpeg"
+    except Exception:
+        return data, None
+
+
 def read_photo(data, mime):
+    data, new_mime = shrink(data)
+    mime = new_mime or mime
     info = ask([types.Part.from_bytes(data=data, mime_type=mime), PROMPT])
     if not isinstance(info, dict):
         raise RuntimeError("photo read failed")
@@ -591,7 +609,7 @@ if photos:
                 if not ta and not tb:
                     st.info(T["no_label"])
                     continue
-                hits = mentions(ta, nb) + mentions(tb, na)
+                hits = mentions(ta, nb + class_terms(nb)) + mentions(tb, na + class_terms(na))
                 if hits:
                     snippet = " ".join(hits)
                     text = explain_pair(ga, gb, snippet, LANG_NAME, SCRIPT, NT)
