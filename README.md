@@ -1,65 +1,86 @@
-# MedSaathi 💊
+# 💊 MedSaathi
 
-Dawai ki photo se jaankari, aapki profile ke hisaab se savdhani, aur do dawaiyan saath lene ka check, simple Hindi me.
+**Apni dawai ko samjho, apni bhasha mein.**
+Upload photos of medicine strips or boxes. MedSaathi reads the label, checks the expiry, shows precautions based on your profile, and checks interactions when you upload two or more medicines. Output is available in 22 Indian languages plus English.
 
-**Live demo:** _(deploy ke baad link yahan lagana)_
-**Demo video:** _(link yahan lagana)_
+Built for the **Code for a Billion: Bharat Agentic-AI Hackathon 2026** (theme: agentic AI for India's public health). Aim: help ordinary people, especially elderly and rural users, understand their medicines.
 
-## Problem
+**Live app:** https://medsaathi-7amrfu58ehsx9ryrmuj29u.streamlit.app
 
-Bharat me bahut se log, khaaskar buzurg aur chhote shehron/gaon ke log, dawai ki strip dekh ke samajh nahi paate ki wo kya hai, expire to nahi hui, ya kisi doosri dawai ke saath lena safe hai ya nahi. Galat combination ya expired dawai se nuksan ho sakta hai.
+> ⚠️ **Information only. Not a substitute for a doctor or pharmacist.** MedSaathi never gives a dose and never suggests which medicine to take.
 
-## Solution
+---
 
-MedSaathi me user dawai ki photo upload karta hai. App:
+## What it does
 
-1. **Photo padhta hai** (Gemini vision) aur dawai ka naam, salt, kaam aur expiry nikalta hai
-2. **Expiry check** karta hai (hara / peela / laal)
-3. **Profile ke hisaab se savdhani** deta hai (umar, pregnancy, kidney, liver, asthma, BP, pet ka ulcer, allergy)
-4. **Do ya zyada dawaiyan saath lene ka interaction** batata hai
-5. Sab kuch **simple Hindi (Devanagari)** me samjhata hai
+- **Photo to label.** Upload one or more photos. Gemini vision extracts brand, generic salt, synonyms, use, and expiry.
+- **Edit what was read.** If the label was read wrongly, fix brand, salt or expiry in editable boxes. Everything downstream updates.
+- **Expiry card.** Green (OK), amber (under 90 days), red (expired).
+- **Who should not take it.** Warnings come from the **openFDA drug label API** (boxed warning, contraindications, do-not-use, pregnancy, pediatric, geriatric, and more), filtered by your sidebar profile (age group, pregnancy, kidney, liver, asthma, BP/heart, stomach ulcer, allergy). Gemini only rephrases and translates. The original FDA text is always shown as the source.
+- **Allergy alert.** Red alert if your typed allergy matches the salt or its synonyms.
+- **Interaction check.** For every pair of uploaded medicines, MedSaathi looks for each drug (and a small list of drug-class terms, such as NSAIDs) in the other's FDA `drug_interactions` text.
+- **Ask MedSaathi (agent).** Ask a question in plain words. A Gemini agent decides which tools to call and answers with sources. The "Agent ne kya kiya" box shows every tool call.
+- **22 languages.** Hindi, English and Marathi have hand-written UI text. The others are machine-translated by Gemini and cached. Low-resource ones are marked beta. Urdu, Kashmiri and Sindhi use right-to-left layout.
 
-## Safety ka tareeka (important)
+## How the agent works
 
-- **Medical faisla AI ke andaze se nahi hota.** Warnings aur interactions **FDA ke official drug label (openFDA)** ke text se aate hain. AI sirf us text ko simple Hindi me samjhata hai.
-- Har warning ke saath **original FDA text (source)** dikhta hai, taaki user/doctor khud verify kar sake.
-- App **dose kabhi nahi batata** aur **dawai suggest nahi karta**.
-- "Label me warning nahi mili" ka matlab "safe hai" nahi hota, ye app saaf likhta hai.
-- Profile kahin save nahi hoti, sirf us session me use hoti hai.
+```
+User question + uploaded photos
+        │
+        ▼
+   Gemini (function calling)  ── decides which tool to call ──┐
+        │                                                      │
+        ▼                                                      ▼
+ read_label(photo_no)      check_expiry(MM/YYYY)      fda_lookup(drug, topic)
+                                                       check_interaction(a, b)
+        │                                                      │
+        └──────────── tool results (FDA text only) ◄───────────┘
+        │
+        ▼
+ Short answer with sources + disclaimer
+```
 
-## Tech stack
+Tools: `read_label`, `check_expiry`, `fda_lookup`, `check_interaction` (see `agent.py`).
+Medical facts come only from tool results. The model is instructed never to answer a medical fact from memory.
 
-- Python, Streamlit
-- Google Gemini API (photo padhna aur Hindi me samjhana)
-- openFDA Drug Label API (warnings aur interactions ka data)
+## Safety rules
 
-## Limitations (imaandari se)
+1. The app **never gives a dose** and **never suggests which medicine to take**.
+2. Medical statements come from **FDA label text**, with the source shown. The LLM only rephrases or translates.
+3. The disclaimer is always visible.
+4. "No warning found" is never worded as "safe". It says: not found, ask a doctor.
+5. Your profile is **not stored anywhere**. It lives only in your session.
 
-- Data **US FDA labels** ka hai, Bharat ke brand names ya Indian labels ka nahi. Salt ka naam match karke dhundhta hai.
-- Interaction check abhi sirf **seedha naam mention** pakadta hai, poori dawai class (jaise "NSAIDs") nahi.
-- Photo padhne me galti ho sakti hai (dhundhli photo, chhota text).
-- Free-tier AI model kabhi busy ho sakta hai.
-- Ye **jaankari ke liye hai, doctor/pharmacist ki salah ka vikalp nahi.**
+## Known limitations
 
-## Aage ke plan
+- Data is **US FDA labels**, not Indian labels or brands. Matching is by salt name.
+- The interaction check finds direct name mentions plus a small hand-made list of drug classes. It can miss real interactions. "No direct interaction found" is **not** a guarantee.
+- Photo reading can fail on blurry images. Free Gemini models can be busy or slow.
+- Machine-translated languages are **not verified by native speakers**.
 
-- Marathi aur doosri bhashayein
-- Indian drug database jodna
-- Dawai ki class (jaise NSAIDs) ke hisaab se interaction
-- Dose reminder aur family alert
+## Run it yourself
 
-## Local me chalana
+```bash
+git clone https://github.com/girish42406/medsaathi
+cd medsaathi
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+export GEMINI_API_KEY=your_key_here
+streamlit run medsaathi.py
+```
 
-    git clone https://github.com/girish42406/medsaathi.git
-    cd medsaathi
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-    export GEMINI_API_KEY=apni_key
-    streamlit run medsaathi.py
+On Streamlit Community Cloud, put `GEMINI_API_KEY` in **Secrets**. Never put a key in code.
 
-Gemini API key **aistudio.google.com** se free me mil jaati hai.
+## Files
 
-## Author
+| File | What it does |
+| --- | --- |
+| `medsaathi.py` | Streamlit app: UI, photo reading, FDA warnings, interaction check |
+| `agent.py` | Gemini function-calling agent and its 4 tools |
+| `drug_classes.py` | Small drug to class-term list used only for searching FDA text |
+| `requirements.txt` | Python packages |
 
-Girish Sharma
+## License
+
+MIT. See [LICENSE](LICENSE).
